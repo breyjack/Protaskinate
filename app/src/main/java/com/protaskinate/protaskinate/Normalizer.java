@@ -24,23 +24,23 @@ public class Normalizer {
     // Singleton instance
     private static Normalizer __instance;
 
-    public static String Normalize(Event[] events) {
+    public String Normalize(Event[] events) {
 
-            DateTime minTime = DateTime.parseRfc3339("2016-10-12T12:58:58.875-06:00");
-            DateTime maxTime = DateTime.parseRfc3339("2016-10-12T12:58:58.875-06:00");
+        // Right now, this just shows the earliest and latest events
+
+            DateTime minTime = DateTime.parseRfc3339("2050-10-12T12:58:58.875-06:00");
+            DateTime maxTime = DateTime.parseRfc3339("2001-10-12T12:58:58.875-06:00");
 
             for (Event e :
                     events) {
                 if (e.getStart().getDateTime().getValue() < minTime.getValue())
                     minTime = e.getStart().getDateTime();
 
-                if (e.getEnd().getDateTime().getValue() < maxTime.getValue())
+                if (e.getEnd().getDateTime().getValue() > maxTime.getValue())
                     maxTime = e.getEnd().getDateTime();
-
             }
 
-            return "Min: " + minTime.toString() + "\nMax: " + maxTime.toString();
-
+            return "Min: " + minTime.getValue() + "\nMax: " + maxTime.getValue();
     }
 
     @Override

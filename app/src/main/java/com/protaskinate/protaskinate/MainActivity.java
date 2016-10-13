@@ -14,6 +14,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Button;
+import android.widget.TextView;
 
 import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
@@ -24,6 +25,7 @@ import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventDateTime;
 
 import java.sql.Date;
+import java.util.Random;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -59,29 +61,16 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        Button magic = (Button) findViewById(R.id.magic_button);
-
-        DateTime today = DateTime.parseRfc3339("2016-10-12T12:58:58.875-06:00");
-
-        final Event[] events = new Event[2];
-        events[0] = EventCheater.makeEvent(
-                "Michael's Test Event",
-                EventCheater.makeDateTime(2016,10,12,8,4,51),
-                EventCheater.makeDateTime(2016,10,12,9,5,7));
-
-        events[1] = EventCheater.makeEvent(
-                "Michael's Second Test Event",
-                EventCheater.makeDateTime(2016,10,12,10,4,9),
-                EventCheater.makeDateTime(2016,10,12,14,0,8));
-
-        magic.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                ((Button) view).setText(Normalizer.Normalize(events));
-            }
-        });
         // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
         client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+
+        ((Button)findViewById(R.id.magicButton)).setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v){
+                ((TextView) findViewById(R.id.outputTextView)).setText(new Normalizer().Normalize(EventCheater.makeRandomEvents(30)));
+            }
+
+        });
     }
 
     @Override
