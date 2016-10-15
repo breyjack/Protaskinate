@@ -33,7 +33,17 @@ dependencies {
     compile 'com.android.support:design:24.2.1'
     compile 'com.google.android.gms:play-services-auth:9.0.2'
     compile 'pub.devrel:easypermissions:0.1.5'
-    testCompile 'junit:junit:4.12'
-    compile 'com.google.apis:google-api-services-calendar:v3-rev215-1.22.0'
+
+    /*Remove these comments if the code just below works*/
+    //testCompile 'junit:junit:4.12'
+    //compile 'com.google.apis:google-api-services-calendar:v3-rev215-1.22.0'
+    //compile 'com.google.android.gms:play-services-appindexing:8.4.0'
+    //compile 'com.google.apis:google-api-services-calendar:v3-rev215-1.22.0'
     compile 'com.google.android.gms:play-services-appindexing:8.4.0'
+    compile('com.google.api-client:google-api-client-android:1.22.0') {		    testCompile 'junit:junit:4.12'
+        exclude group: 'org.apache.httpcomponents'
+    }
+    compile('com.google.apis:google-api-services-calendar:v3-rev216-1.22.0') {
+        exclude group: 'org.apache.httpcomponents'
+    }
 }
