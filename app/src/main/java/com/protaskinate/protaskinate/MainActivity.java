@@ -35,6 +35,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -44,7 +45,9 @@ import android.widget.TextView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import pub.devrel.easypermissions.EasyPermissions;
 
@@ -62,7 +65,7 @@ public class MainActivity extends Activity
 
     private static final String BUTTON_TEXT = "Call Google Calendar API";
     private static final String PREF_ACCOUNT_NAME = "accountName";
-    private static final String[] SCOPES = { CalendarScopes.CALENDAR_READONLY };
+    private static final String[] SCOPES = { CalendarScopes.CALENDAR };
 
     /**
      * Create the main activity.
@@ -71,6 +74,7 @@ public class MainActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         LinearLayout activityLayout = new LinearLayout(this);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -95,6 +99,25 @@ public class MainActivity extends Activity
             }
         });
         activityLayout.addView(mCallApiButton);
+
+        /*** Michael's button */
+
+        final Button changeThingButton = new Button(this);
+        changeThingButton.setLayoutParams(tlp);
+        changeThingButton.setText("Click to break things");
+        changeThingButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                changeThingButton.setEnabled(false);
+                mOutputText.setText("");
+                changeAnEvent();
+                changeThingButton.setEnabled(true);
+            }
+        });
+
+        activityLayout.addView(changeThingButton);
+
+        /*** End Michael's button */
 
         mOutputText = new TextView(this);
         mOutputText.setLayoutParams(tlp);
@@ -134,6 +157,22 @@ public class MainActivity extends Activity
             mOutputText.setText("No network connection available.");
         } else {
             new MakeRequestTask(mCredential).execute();
+        }
+    }
+
+
+    private void changeAnEvent(){
+        if (!isGooglePlayServicesAvailable()){
+            acquireGooglePlayServices();
+        }
+        else if (mCredential.getSelectedAccountName() == null){
+            chooseAccount();
+        }
+        else if (!isDeviceOnline()){
+            mOutputText.setText("No network connection available.");
+        }
+        else{
+            new ChangeEventTask(mCredential).execute();
         }
     }
 
@@ -316,6 +355,108 @@ public class MainActivity extends Activity
         dialog.show();
     }
 
+
+    private class ChangeEventTask extends AsyncTask<Void, Void, List<String>> {
+        private com.google.api.services.calendar.Calendar mService = null;
+        private Exception mLastError = null;
+
+        public ChangeEventTask(GoogleAccountCredential credential) {
+            HttpTransport transport = AndroidHttp.newCompatibleTransport();
+            JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
+            mService = new com.google.api.services.calendar.Calendar.Builder(
+                    transport, jsonFactory, credential)
+                    .setApplicationName("Protaskinate Calender Tester")
+                    .build();
+        }
+
+        /**
+         * Background task to call Google Calendar API.
+         * @param params no parameters needed for this task.
+         */
+        @Override
+        protected List<String> doInBackground(Void... params) {
+            try {
+                return putDataToAPI();
+            } catch (Exception e) {
+                mLastError = e;
+                cancel(true);
+                return null;
+            }
+        }
+
+        /**
+         * Fetch a list of the next 10 events from the primary calendar.
+         * @return List of Strings describing returned events.
+         * @throws IOException
+         */
+        private List<String> putDataToAPI() throws IOException {
+            // Do random crap with events
+
+            List<String> eventStrings = new ArrayList<String>();
+
+            mOutputText.setText("Making Event");
+
+            Event.Gadget ptGadget = new Event.Gadget();
+            ptGadget.setTitle("Protaskinate Task");
+            Map<String, String> prefs = new Hashtable<String, String>();
+            prefs.put("Do cool things", "No");
+            prefs.put("Just do simple things", "Yes");
+            ptGadget.setPreferences(prefs);
+
+            Event e = EventCheater.makeEvent("Protaskinate Test Event",
+                    EventCheater.makeEventDateTime(2016,10,15,15,30,0),
+                    EventCheater.makeEventDateTime(2016,10,15,15,35,0));
+            e.setGadget(ptGadget);
+
+            mOutputText.setText("Executing");
+
+            mService
+                    .events()
+                    .insert("mghoffmann@gmail.com", e).execute();
+            return eventStrings;
+        }
+
+
+        @Override
+        protected void onPreExecute() {
+            mOutputText.setText("");
+            mProgress.show();
+        }
+
+        @Override
+        protected void onPostExecute(List<String> output) {
+            mProgress.hide();
+            if (output == null || output.size() == 0) {
+                mOutputText.setText("No results returned.");
+            } else {
+                output.add(0, "Data retrieved using the Google Calendar API:");
+                mOutputText.setText(TextUtils.join("\n", output));
+            }
+        }
+
+        @Override
+        protected void onCancelled() {
+            mProgress.hide();
+            if (mLastError != null) {
+                if (mLastError instanceof GooglePlayServicesAvailabilityIOException) {
+                    showGooglePlayServicesAvailabilityErrorDialog(
+                            ((GooglePlayServicesAvailabilityIOException) mLastError)
+                                    .getConnectionStatusCode());
+                } else if (mLastError instanceof UserRecoverableAuthIOException) {
+                    startActivityForResult(
+                            ((UserRecoverableAuthIOException) mLastError).getIntent(),
+                            MainActivity.REQUEST_AUTHORIZATION);
+                } else {
+                    mOutputText.setText("The following error occurred:\n"
+                            + mLastError
+                            + "\n\nat\n" + TextUtils.join("\n", mLastError.getStackTrace()));
+                }
+            } else {
+                mOutputText.setText("Request cancelled.");
+            }
+        }
+    }
+
     /**
      * An asynchronous task that handles the Google Calendar API call.
      * Placing the API calls in their own task ensures the UI stays responsive.
@@ -358,9 +499,9 @@ public class MainActivity extends Activity
             DateTime now = new DateTime(System.currentTimeMillis());
             List<String> eventStrings = new ArrayList<String>();
             Events events = mService.events().list("primary")
-                    .setMaxResults(10)
+                    .setMaxResults(50)
                     .setTimeMin(now)
-                    .setOrderBy("startTime")
+                    .setOrderBy("endTime")
                     .setSingleEvents(true)
                     .execute();
             List<Event> items = events.getItems();
@@ -410,7 +551,8 @@ public class MainActivity extends Activity
                             MainActivity.REQUEST_AUTHORIZATION);
                 } else {
                     mOutputText.setText("The following error occurred:\n"
-                            + mLastError.getMessage());
+                            + mLastError.getMessage()
+                    + "\n\nat\n" + TextUtils.join("\n", mLastError.getStackTrace()));
                 }
             } else {
                 mOutputText.setText("Request cancelled.");

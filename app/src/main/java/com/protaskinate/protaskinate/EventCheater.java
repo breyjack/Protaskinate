@@ -33,6 +33,17 @@ public class EventCheater
         return e;
     }
 
+    // Overload for if caller wants to use EventCheater.makeEventDateTime
+    public static Event makeEvent(String description, EventDateTime start, EventDateTime end)
+    {
+        Event e = new Event();
+        e.setDescription(description);
+        e.setStart(start);
+        e.setEnd(end);
+
+        return e;
+    }
+
     private static String pad(Integer i){
         return pad(i, 2);
     }
