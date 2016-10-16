@@ -34,10 +34,10 @@ public class EventCheater
     }
 
     // Overload for if caller wants to use EventCheater.makeEventDateTime
-    public static Event makeEvent(String description, EventDateTime start, EventDateTime end)
+    public static Event makeEvent(String title, EventDateTime start, EventDateTime end)
     {
         Event e = new Event();
-        e.setDescription(description);
+        e.setSummary(title);
         e.setStart(start);
         e.setEnd(end);
 

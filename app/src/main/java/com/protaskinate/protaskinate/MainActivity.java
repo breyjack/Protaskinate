@@ -55,7 +55,6 @@ public class MainActivity extends Activity
         implements EasyPermissions.PermissionCallbacks {
     GoogleAccountCredential mCredential;
     private TextView mOutputText;
-    private Button mCallApiButton;
     ProgressDialog mProgress;
 
     static final int REQUEST_ACCOUNT_PICKER = 1000;
@@ -86,19 +85,6 @@ public class MainActivity extends Activity
         ViewGroup.LayoutParams tlp = new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
-
-        mCallApiButton = new Button(this);
-        mCallApiButton.setText(BUTTON_TEXT);
-        mCallApiButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mCallApiButton.setEnabled(false);
-                mOutputText.setText("");
-                getResultsFromApi();
-                mCallApiButton.setEnabled(true);
-            }
-        });
-        activityLayout.addView(mCallApiButton);
 
         /*** Michael's button */
 
@@ -156,24 +142,19 @@ public class MainActivity extends Activity
         } else if (! isDeviceOnline()) {
             mOutputText.setText("No network connection available.");
         } else {
-            new MakeRequestTask(mCredential).execute();
+            //new MakeRequestTask(mCredential).execute();
         }
     }
 
 
     private void changeAnEvent(){
-        if (!isGooglePlayServicesAvailable()){
+        if (!isGooglePlayServicesAvailable())
             acquireGooglePlayServices();
-        }
-        else if (mCredential.getSelectedAccountName() == null){
+        if (mCredential.getSelectedAccountName() == null)
             chooseAccount();
-        }
-        else if (!isDeviceOnline()){
+        if (!isDeviceOnline())
             mOutputText.setText("No network connection available.");
-        }
-        else{
-            new ChangeEventTask(mCredential).execute();
-        }
+        new ChangeEventTask(mCredential).execute();
     }
 
     /**
@@ -394,8 +375,6 @@ public class MainActivity extends Activity
 
             List<String> eventStrings = new ArrayList<String>();
 
-            mOutputText.setText("Making Event");
-
             Event.Gadget ptGadget = new Event.Gadget();
             ptGadget.setTitle("Protaskinate Task");
             Map<String, String> prefs = new Hashtable<String, String>();
@@ -403,15 +382,19 @@ public class MainActivity extends Activity
             prefs.put("Just do simple things", "Yes");
             ptGadget.setPreferences(prefs);
 
-            Calendar primary = mService.calendars().get("primary").execute();
-            Event e = new Event();
-            e.setGadget(ptGadget);
+            ptGadget.setIconLink("https://www.google.com/images/nav_logo242.png");
+            ptGadget.setDisplay("icon");
 
-            mOutputText.setText("Executing");
+            //Calendar primary = mService.calendars().get("primary").execute();
+            Event e = EventCheater.makeEvent("Protaskinate Test Event",
+                    EventCheater.makeEventDateTime(2016,10,15,16,30,0),
+                    EventCheater.makeEventDateTime(2016,10,15,16,45,0));
+            e.setEtag("Protaskinate Etag");
+            e.setGadget(ptGadget);
 
             Object o = mService
                     .events()
-                    .insert("mghoffmann@gmail.com", e).execute();
+                    .insert("primary", e).execute();
 
             eventStrings.add(0, o.toString());
             return eventStrings;
@@ -449,111 +432,8 @@ public class MainActivity extends Activity
                             MainActivity.REQUEST_AUTHORIZATION);
                 } else {
                     mOutputText.setText("The following error occurred:\n"
-                            + mLastError
-                            + "\n\nat\n" + TextUtils.join("\n", mLastError.getStackTrace()));
-                }
-            } else {
-                mOutputText.setText("Request cancelled.");
-            }
-        }
-    }
-
-    /**
-     * An asynchronous task that handles the Google Calendar API call.
-     * Placing the API calls in their own task ensures the UI stays responsive.
-     */
-    private class MakeRequestTask extends AsyncTask<Void, Void, List<String>> {
-        private com.google.api.services.calendar.Calendar mService = null;
-        private Exception mLastError = null;
-
-        public MakeRequestTask(GoogleAccountCredential credential) {
-            HttpTransport transport = AndroidHttp.newCompatibleTransport();
-            JsonFactory jsonFactory = JacksonFactory.getDefaultInstance();
-            mService = new com.google.api.services.calendar.Calendar.Builder(
-                    transport, jsonFactory, credential)
-                    .setApplicationName("Google Calendar API Android Quickstart")
-                    .build();
-        }
-
-        /**
-         * Background task to call Google Calendar API.
-         * @param params no parameters needed for this task.
-         */
-        @Override
-        protected List<String> doInBackground(Void... params) {
-            try {
-                return getDataFromApi();
-            } catch (Exception e) {
-                mLastError = e;
-                cancel(true);
-                return null;
-            }
-        }
-
-        /**
-         * Fetch a list of the next 10 events from the primary calendar.
-         * @return List of Strings describing returned events.
-         * @throws IOException
-         */
-        private List<String> getDataFromApi() throws IOException {
-            // List the next 10 events from the primary calendar.
-            DateTime now = new DateTime(System.currentTimeMillis());
-            List<String> eventStrings = new ArrayList<String>();
-            Events events = mService.events().list("primary")
-                    .setMaxResults(50)
-                    .setTimeMin(now)
-                    .setOrderBy("startTime")
-                    .setSingleEvents(true)
-                    .execute();
-            List<Event> items = events.getItems();
-
-            for (Event event : items) {
-                DateTime start = event.getStart().getDateTime();
-                if (start == null) {
-                    // All-day events don't have start times, so just use
-                    // the start date.
-                    start = event.getStart().getDate();
-                }
-                eventStrings.add(
-                        String.format("%s (%s)", event.getSummary(), start));
-            }
-            return eventStrings;
-        }
-
-
-        @Override
-        protected void onPreExecute() {
-            mOutputText.setText("");
-            mProgress.show();
-        }
-
-        @Override
-        protected void onPostExecute(List<String> output) {
-            mProgress.hide();
-            if (output == null || output.size() == 0) {
-                mOutputText.setText("No results returned.");
-            } else {
-                output.add(0, "Data retrieved using the Google Calendar API:");
-                mOutputText.setText(TextUtils.join("\n", output));
-            }
-        }
-
-        @Override
-        protected void onCancelled() {
-            mProgress.hide();
-            if (mLastError != null) {
-                if (mLastError instanceof GooglePlayServicesAvailabilityIOException) {
-                    showGooglePlayServicesAvailabilityErrorDialog(
-                            ((GooglePlayServicesAvailabilityIOException) mLastError)
-                                    .getConnectionStatusCode());
-                } else if (mLastError instanceof UserRecoverableAuthIOException) {
-                    startActivityForResult(
-                            ((UserRecoverableAuthIOException) mLastError).getIntent(),
-                            MainActivity.REQUEST_AUTHORIZATION);
-                } else {
-                    mOutputText.setText("The following error occurred:\n"
                             + mLastError.getMessage()
-                    + "\n\nat\n" + TextUtils.join("\n", mLastError.getStackTrace()));
+                            /*+ "\n\nat\n" + TextUtils.join("\n", mLastError.getStackTrace())*/);
                 }
             } else {
                 mOutputText.setText("Request cancelled.");
