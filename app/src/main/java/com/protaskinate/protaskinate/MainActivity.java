@@ -15,7 +15,6 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.ExponentialBackOff;
 
 import com.google.api.services.calendar.CalendarScopes;
-import com.google.api.client.util.DateTime;
 
 import com.google.api.services.calendar.model.*;
 
@@ -35,7 +34,6 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.text.method.ScrollingMovementMethod;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -51,6 +49,8 @@ import java.util.Map;
 
 import pub.devrel.easypermissions.EasyPermissions;
 
+import static android.R.id.primary;
+
 public class MainActivity extends Activity
         implements EasyPermissions.PermissionCallbacks {
     GoogleAccountCredential mCredential;
@@ -62,7 +62,6 @@ public class MainActivity extends Activity
     static final int REQUEST_GOOGLE_PLAY_SERVICES = 1002;
     static final int REQUEST_PERMISSION_GET_ACCOUNTS = 1003;
 
-    private static final String BUTTON_TEXT = "Call Google Calendar API";
     private static final String PREF_ACCOUNT_NAME = "accountName";
     private static final String[] SCOPES = { CalendarScopes.CALENDAR };
 
@@ -96,7 +95,7 @@ public class MainActivity extends Activity
             public void onClick(View v) {
                 changeThingButton.setEnabled(false);
                 mOutputText.setText("Changing Event");
-                changeAnEvent();
+                testTheAPI();
                 changeThingButton.setEnabled(true);
             }
         });
@@ -111,7 +110,7 @@ public class MainActivity extends Activity
         mOutputText.setVerticalScrollBarEnabled(true);
         mOutputText.setMovementMethod(new ScrollingMovementMethod());
         mOutputText.setText(
-                "Click the \'" + BUTTON_TEXT +"\' button to test the API.");
+                "Click the magic button to test the API.");
         activityLayout.addView(mOutputText);
 
         mProgress = new ProgressDialog(this);
@@ -126,28 +125,7 @@ public class MainActivity extends Activity
     }
 
 
-
-    /**
-     * Attempt to call the API, after verifying that all the preconditions are
-     * satisfied. The preconditions are: Google Play Services installed, an
-     * account was selected and the device currently has online access. If any
-     * of the preconditions are not satisfied, the app will prompt the user as
-     * appropriate.
-     */
-    private void getResultsFromApi() {
-        if (! isGooglePlayServicesAvailable()) {
-            acquireGooglePlayServices();
-        } else if (mCredential.getSelectedAccountName() == null) {
-            chooseAccount();
-        } else if (! isDeviceOnline()) {
-            mOutputText.setText("No network connection available.");
-        } else {
-            //new MakeRequestTask(mCredential).execute();
-        }
-    }
-
-
-    private void changeAnEvent(){
+    private void testTheAPI(){
         if (!isGooglePlayServicesAvailable())
             acquireGooglePlayServices();
         if (mCredential.getSelectedAccountName() == null)
@@ -175,7 +153,7 @@ public class MainActivity extends Activity
                     .getString(PREF_ACCOUNT_NAME, null);
             if (accountName != null) {
                 mCredential.setSelectedAccountName(accountName);
-                getResultsFromApi();
+                testTheAPI();
             } else {
                 // Start a dialog from which the user can choose an account
                 startActivityForResult(
@@ -213,7 +191,7 @@ public class MainActivity extends Activity
                             "This app requires Google Play Services. Please install " +
                                     "Google Play Services on your device and relaunch this app.");
                 } else {
-                    getResultsFromApi();
+                    testTheAPI();
                 }
                 break;
             case REQUEST_ACCOUNT_PICKER:
@@ -228,13 +206,13 @@ public class MainActivity extends Activity
                         editor.putString(PREF_ACCOUNT_NAME, accountName);
                         editor.apply();
                         mCredential.setSelectedAccountName(accountName);
-                        getResultsFromApi();
+                        testTheAPI();
                     }
                 }
                 break;
             case REQUEST_AUTHORIZATION:
                 if (resultCode == RESULT_OK) {
-                    getResultsFromApi();
+                    testTheAPI();
                 }
                 break;
         }
@@ -382,21 +360,42 @@ public class MainActivity extends Activity
             prefs.put("Just do simple things", "Yes");
             ptGadget.setPreferences(prefs);
 
-            ptGadget.setIconLink("https://www.google.com/images/nav_logo242.png");
-            ptGadget.setDisplay("icon");
+            ptGadget.setIconLink("https://i.imgur.com/lqe0G9g.jpg");
+            ptGadget.setDisplay("chip");
 
-            //Calendar primary = mService.calendars().get("primary").execute();
+            for (CalendarListEntry cle : mService.calendarList().list().execute().getItems()){
+                eventStrings.add(0,
+                        "ID: " + cle.getId() + "\n"
+                                + "Summary: " + cle.getSummary() + "\n"
+                                + "ColorID: " + cle.getColorId());
+            }
+
             Event e = EventCheater.makeEvent("Protaskinate Test Event",
-                    EventCheater.makeEventDateTime(2016,10,15,16,30,0),
-                    EventCheater.makeEventDateTime(2016,10,15,16,45,0));
+                    EventCheater.makeEventDateTime(2016,10,15,19,45,0),
+                    EventCheater.makeEventDateTime(2016,10,15,19,55,0));
             e.setEtag("Protaskinate Etag");
             e.setGadget(ptGadget);
 
-            Object o = mService
+            List<EventReminder> reminders = new ArrayList<EventReminder>();
+
+            EventReminder botherCameron = new EventReminder();
+            botherCameron.setMinutes(1);
+            botherCameron.setMethod("sms");
+
+            reminders.add(0, botherCameron);
+            Event.Reminders rs = new Event.Reminders();
+            // Don't use the default reminders
+            rs.setUseDefault(false);
+            // Set our own reminders (this can be up to 5 custom reminders).
+            rs.setOverrides(reminders);
+
+            e.setReminders(rs);
+
+
+            mService
                     .events()
                     .insert("primary", e).execute();
 
-            eventStrings.add(0, o.toString());
             return eventStrings;
         }
 
