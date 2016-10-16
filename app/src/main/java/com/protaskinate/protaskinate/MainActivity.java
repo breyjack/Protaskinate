@@ -109,7 +109,7 @@ public class MainActivity extends Activity
             @Override
             public void onClick(View v) {
                 changeThingButton.setEnabled(false);
-                mOutputText.setText("");
+                mOutputText.setText("Changing Event");
                 changeAnEvent();
                 changeThingButton.setEnabled(true);
             }
@@ -403,16 +403,17 @@ public class MainActivity extends Activity
             prefs.put("Just do simple things", "Yes");
             ptGadget.setPreferences(prefs);
 
-            Event e = EventCheater.makeEvent("Protaskinate Test Event",
-                    EventCheater.makeEventDateTime(2016,10,15,15,30,0),
-                    EventCheater.makeEventDateTime(2016,10,15,15,35,0));
+            Calendar primary = mService.calendars().get("primary").execute();
+            Event e = new Event();
             e.setGadget(ptGadget);
 
             mOutputText.setText("Executing");
 
-            mService
+            Object o = mService
                     .events()
                     .insert("mghoffmann@gmail.com", e).execute();
+
+            eventStrings.add(0, o.toString());
             return eventStrings;
         }
 
@@ -501,7 +502,7 @@ public class MainActivity extends Activity
             Events events = mService.events().list("primary")
                     .setMaxResults(50)
                     .setTimeMin(now)
-                    .setOrderBy("endTime")
+                    .setOrderBy("startTime")
                     .setSingleEvents(true)
                     .execute();
             List<Event> items = events.getItems();
